@@ -1,18 +1,47 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router';
-import * as SplashScreen from 'expo-splash-screen';
-import { useColorScheme } from 'react-native';
-
-import { AnimatedSplashOverlay } from '@/components/animated-icon';
-import AppTabs from '@/components/app-tabs';
-
-SplashScreen.preventAutoHideAsync();
-
-export default function TabLayout() {
-  const colorScheme = useColorScheme();
+import { Stack } from "expo-router";
+import { SafeAreaProvider } from "react-native-safe-area-context";
+import { SessionProvider, useSession } from "@/session";
+import { ChatProvider } from "@/chat";
+import { CallProvider } from "@/calls";
+export default function RootLayout() {
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <AnimatedSplashOverlay />
-      <AppTabs />
-    </ThemeProvider>
+    <SafeAreaProvider>
+      <SessionProvider>
+        <ChatProvider>
+          <CallProvider>
+            <Navigator />
+          </CallProvider>
+        </ChatProvider>
+      </SessionProvider>
+    </SafeAreaProvider>
+  );
+}
+
+function Navigator() {
+  const { user } = useSession();
+  return (
+    <Stack
+      key={user?.id ?? "guest"}
+      screenOptions={{
+        headerStyle: { backgroundColor: "#f2f5fa" },
+        headerTintColor: "#17283c",
+        headerShadowVisible: false,
+        contentStyle: { backgroundColor: "#f2f5fa" },
+      }}
+    >
+      <Stack.Screen
+        name="index"
+        options={{ title: "Relay", headerShown: false }}
+      />
+      <Stack.Screen
+        name="conversation/[id]"
+        options={{ title: "Conversation" }}
+      />
+      <Stack.Screen name="people" options={{ title: "New conversation" }} />
+      <Stack.Screen name="notifications" options={{ title: "Notifications" }} />
+      <Stack.Screen name="profile" options={{ title: "Your profile" }} />
+      <Stack.Screen name="admin" options={{ title: "Administration" }} />
+      <Stack.Screen name="account" options={{ title: "Account access" }} />
+    </Stack>
   );
 }

@@ -1,0 +1,42 @@
+{
+  "cli": { "version": ">=16.0.0" },
+  "build": {
+    "local": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "environment": "development",
+      "env": {
+        "APP_ENV": "local",
+        "EXPO_NO_DOTENV": "1",
+        "EXPO_PUBLIC_API_ORIGIN": "http://localhost:8000"
+      },
+      "ios": { "env": { "EXPO_PUBLIC_API_ORIGIN": "http://localhost:8000" } }
+    },
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "environment": "development",
+      "env": {
+        "APP_ENV": "development",
+        "EXPO_NO_DOTENV": "1",
+        "EXPO_PUBLIC_API_ORIGIN": "https://chat.roshanlama.com.np"
+      }
+    },
+    "staging": {
+      "extends": "development",
+      "developmentClient": false,
+      "environment": "preview",
+      "env": { "APP_ENV": "staging" }
+    },
+    "preview": { "extends": "staging", "developmentClient": false },
+    "production": {
+      "environment": "production",
+      "env": {
+        "APP_ENV": "production",
+        "EXPO_NO_DOTENV": "1",
+        "EXPO_PUBLIC_API_ORIGIN": "https://chat.roshanlama.com.np"
+      }
+    }
+  },
+  "submit": { "production": {} }
+}

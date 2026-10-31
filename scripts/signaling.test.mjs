@@ -1,0 +1,5 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { CandidateBuffer, Lifetime } from '../src/lib/core.ts';
+test('ICE candidates wait for remote description and flush in arrival order', async () => { const buffer = new CandidateBuffer(), delivered = []; const add = async value => { delivered.push(value); }; await buffer.add('early-1', false, add); await buffer.add('early-2', false, add); assert.deepEqual(delivered, []); await buffer.flush(add, () => true); await buffer.add('late', true, add); await buffer.flush(add, () => true); assert.deepEqual(delivered, ['early-1', 'early-2', 'late']); });
+test('ending during candidate drainage prevents subsequent delivery', async () => { const buffer = new CandidateBuffer(), life = new Lifetime(), gen = life.generation, delivered = []; await buffer.add(1, false, async () => assert.fail()); await buffer.add(2, false, async () => assert.fail()); await buffer.flush(async value => { delivered.push(value); life.stop(4); }, () => life.valid(gen, 4)); buffer.clear(); await buffer.flush(async () => assert.fail(), () => true); assert.deepEqual(delivered, [1]); });

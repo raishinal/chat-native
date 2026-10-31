@@ -32,6 +32,10 @@ yarn-error.*
 
 # local env files
 .env*.local
+/.env
+/*-build.log
+/bundle-check.log
+/config-check.json
 
 # typescript
 *.tsbuildinfo
@@ -41,3 +45,11 @@ example
 # generated native folders
 /ios
 /android
+/short-autolink.log
+/test-results.log
+/dependency-audit.json
+/emulator-*.log
+/emulator-process.txt
+/relay-ui.xml
+/relay-startup.png
+/env-bundle-check.log
