@@ -1,11 +1,11 @@
-import { useState } from "react";
-import { ScrollView, Text } from "react-native";
-import { Redirect } from "expo-router";
-import * as ImagePicker from "expo-image-picker";
-import { useSession } from "@/session";
 import { api } from "@/lib/api";
 import type { PickedFile, User } from "@/lib/contracts";
+import { useSession } from "@/session";
 import { Button, Card, Field, styles } from "@/ui";
+import * as ImagePicker from "expo-image-picker";
+import { Redirect } from "expo-router";
+import { useState } from "react";
+import { ScrollView, Text } from "react-native";
 export default function Profile() {
   const { user, setUser, logout } = useSession(),
     [name, setName] = useState(user?.name || ""),

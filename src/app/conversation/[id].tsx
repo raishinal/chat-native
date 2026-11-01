@@ -208,8 +208,8 @@ export default function ConversationScreen() {
       throw new Error(
         "The default server limit is 5 attachments per message. Remove files and retry.",
       );
-    if (selections.some((f) => (f.size || 0) > 25 * 1024 * 1024))
-      throw new Error("The default server limit is 25 MiB per file.");
+    if (selections.some((f) => (f.size || 0) > 1024 * 1024 * 1024))
+      throw new Error("The default server limit is 1 GiB per file.");
     sending.current = true;
     followLatest.current = true;
     const sendToken = api.token;

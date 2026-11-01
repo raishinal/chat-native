@@ -1,8 +1,8 @@
-import { useState } from "react";
-import { KeyboardAvoidingView, Platform, ScrollView, Text } from "react-native";
-import { router, useLocalSearchParams } from "expo-router";
 import { api } from "@/lib/api";
 import { Button, Card, Field, styles } from "@/ui";
+import { router, useLocalSearchParams } from "expo-router";
+import { useState } from "react";
+import { KeyboardAvoidingView, Platform, ScrollView, Text } from "react-native";
 export default function Account() {
   const params = useLocalSearchParams<{
     token?: string;
