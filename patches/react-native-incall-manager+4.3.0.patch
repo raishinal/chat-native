@@ -1,0 +1,113 @@
+diff --git a/node_modules/react-native-incall-manager/ios/RNInCallManager/RNInCallManager.m b/node_modules/react-native-incall-manager/ios/RNInCallManager/RNInCallManager.m
+--- a/node_modules/react-native-incall-manager/ios/RNInCallManager/RNInCallManager.m
++++ b/node_modules/react-native-incall-manager/ios/RNInCallManager/RNInCallManager.m
+@@ -143,7 +143,7 @@ RCT_EXPORT_METHOD(start:(NSString *)mediaType auto:(BOOL)autoType ringback:(NSString
+     _forceSpeakerOn = 0;
+     [self startAudioSessionNotification];
+     [self audioSessionSetCategory:_incallAudioCategory
+-                          options:0
++                          options:AVAudioSessionCategoryOptionAllowBluetooth
+                        callerMemo:NSStringFromSelector(_cmd)];
+     [self audioSessionSetMode:_incallAudioMode
+                    callerMemo:NSStringFromSelector(_cmd)];
+@@ -492,7 +492,7 @@ RCT_EXPORT_METHOD(getIsWiredHeadsetPluggedIn:(RCTPromiseResolveBlock)resolve
+ 
+     if (![_audioSession.category isEqualToString:_incallAudioCategory]) {
+         [self audioSessionSetCategory:_incallAudioCategory
+-                              options:0
++                              options:AVAudioSessionCategoryOptionAllowBluetooth
+                            callerMemo:NSStringFromSelector(_cmd)];
+         NSLog(@"RNInCallManager.updateAudioRoute() audio category has changed to %@", _incallAudioCategory);
+     } else {
+diff --git a/node_modules/react-native-incall-manager/android/src/main/java/com/zxcpoiu/incallmanager/AppRTC/AppRTCBluetoothManager.java b/node_modules/react-native-incall-manager/android/src/main/java/com/zxcpoiu/incallmanager/AppRTC/AppRTCBluetoothManager.java
+--- a/node_modules/react-native-incall-manager/android/src/main/java/com/zxcpoiu/incallmanager/AppRTC/AppRTCBluetoothManager.java
++++ b/node_modules/react-native-incall-manager/android/src/main/java/com/zxcpoiu/incallmanager/AppRTC/AppRTCBluetoothManager.java
+@@ -148,10 +148,11 @@
+         bluetoothState = State.HEADSET_UNAVAILABLE;
+       } else if (bluetoothAudioDevice == null && newBtDevice != null) {
+         needChange = true;
+-      } else if (bluetoothAudioDevice != null && bluetoothAudioDevice.getId() != newBtDevice.getId()) {
++      } else if (bluetoothAudioDevice != null && newBtDevice != null && bluetoothAudioDevice.getId() != newBtDevice.getId()) {
+         needChange = true;
+       }
+       if (needChange) {
++        updateDevice();
+         updateAudioDeviceState();
+       }
+     }
+@@ -283,6 +284,14 @@
+       Log.w(TAG, "Device does not support Bluetooth");
+       return;
+     }
++    // Android 12+ exposes call-capable classic and LE earbuds directly. Do not
++    // wait for the legacy HEADSET proxy or require legacy off-call SCO support.
++    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
++      bluetoothState = State.HEADSET_UNAVAILABLE;
++      audioManager.registerAudioDeviceCallback(bluetoothAudioDeviceCallback, handler);
++      updateDevice();
++      return;
++    }
+     // Ensure that the device supports use of BT SCO audio for off call use cases.
+     if (!audioManager.isBluetoothScoAvailableOffCall()) {
+       Log.e(TAG, "Bluetooth SCO audio is not available off call");
+@@ -369,7 +378,10 @@
+     }
+     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+       if (bluetoothAudioDevice != null) {
+-        audioManager.setCommunicationDevice(bluetoothAudioDevice);
++        if (!audioManager.setCommunicationDevice(bluetoothAudioDevice)) {
++          Log.w(TAG, "Bluetooth communication device request rejected");
++          return false;
++        }
+         bluetoothState = State.SCO_CONNECTED;
+         Log.d(TAG, "Set bluetooth audio device as communication device: "
+                 + "id=" + bluetoothAudioDevice.getId());
+@@ -435,7 +447,8 @@
+    */
+   @SuppressLint("MissingPermission")
+   public void updateDevice() {
+-    if (bluetoothState == State.UNINITIALIZED || bluetoothHeadset == null) {
++    if (bluetoothState == State.UNINITIALIZED
++            || (Build.VERSION.SDK_INT < Build.VERSION_CODES.S && bluetoothHeadset == null)) {
+       return;
+     }
+     Log.d(TAG, "updateDevice");
+diff --git a/node_modules/react-native-incall-manager/android/src/main/java/com/zxcpoiu/incallmanager/InCallManagerModule.java b/node_modules/react-native-incall-manager/android/src/main/java/com/zxcpoiu/incallmanager/InCallManagerModule.java
+--- a/node_modules/react-native-incall-manager/android/src/main/java/com/zxcpoiu/incallmanager/InCallManagerModule.java
++++ b/node_modules/react-native-incall-manager/android/src/main/java/com/zxcpoiu/incallmanager/InCallManagerModule.java
+@@ -1943,6 +1943,15 @@
+         runOnLifecycleThread(() -> {
+             Log.d(TAG, "RNInCallManager.chooseAudioRoute(): user choose audioDevice = " + audioRoute);
+ 
++            // Retry initialization if Nearby devices was granted during the call,
++            // then refresh routes rather than returning a stale device snapshot.
++            if (audioManagerActivated) {
++                if (bluetoothManager.getState() == AppRTCBluetoothManager.State.UNINITIALIZED) {
++                    bluetoothManager.start();
++                }
++                updateAudioDeviceState();
++            }
++
+             if (audioRoute.equals(AudioDevice.EARPIECE.name())) {
+                 selectAudioDevice(AudioDevice.EARPIECE);
+             } else if (audioRoute.equals(AudioDevice.SPEAKER_PHONE.name())) {
+@@ -2244,13 +2253,16 @@
+                     && bluetoothManager.getState() == AppRTCBluetoothManager.State.HEADSET_AVAILABLE) {
+                 // Attempt to start Bluetooth SCO audio (takes a few second to start).
+                 if (!bluetoothManager.startScoAudio()) {
+-                    // Remove BLUETOOTH from list of available devices since SCO failed.
+-                    audioDevices.remove(AudioDevice.BLUETOOTH);
++                    // A rejected route request does not mean connected earbuds
++                    // disappeared. Keep modern devices selectable for a retry.
++                    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
++                        audioDevices.remove(AudioDevice.BLUETOOTH);
++                    }
+                     audioDeviceSetUpdated = true;
+                     if (userSelectedAudioDevice == AudioDevice.BLUETOOTH) {
+                         userSelectedAudioDevice = AudioDevice.NONE;
+                     }
+-                    newAudioDevice = getPreferredAudioDevice();
++                    newAudioDevice = getPreferredAudioDevice(true);
+                 }
+             }
+             

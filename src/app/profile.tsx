@@ -1,9 +1,9 @@
-import { useState } from "react";
-import { Platform, ScrollView, Text } from "react-native";
+import { useEffect, useState } from "react";
+import { AppState, Platform, ScrollView, Text } from "react-native";
 import { Redirect } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
 import { useSession } from "@/session";
-import { pushEnabled, requestNativeCallSetup } from "@/lib/native-push";
+import { pushEnabled, requestNativeCallSetup, setupNativeCalls } from "@/lib/native-push";
 import { api, origin } from "@/lib/api";
 import type { PickedFile, User } from "@/lib/contracts";
 import { Button, Card, Field, styles } from "@/ui";
@@ -12,10 +12,31 @@ export default function Profile() {
     [name, setName] = useState(user?.name || ""),
     [avatar, setAvatar] = useState<PickedFile | null>(null),
     [callSetupMessage, setCallSetupMessage] = useState(""),
+    [nativeCallReady, setNativeCallReady] = useState<boolean | null>(null),
     [currentPassword, setCurrentPassword] = useState(""),
     [password, setPassword] = useState(""),
     [confirmation, setConfirmation] = useState(""),
     [passwordMessage, setPasswordMessage] = useState("");
+  const userId = user?.id;
+  useEffect(() => {
+    if (!userId || !pushEnabled || Platform.OS !== "android") return;
+    let active = true;
+    async function refresh() {
+      const enabled = await setupNativeCalls().catch(() => false);
+      if (active) {
+        setNativeCallReady(enabled);
+        setCallSetupMessage("");
+      }
+    }
+    void refresh();
+    const subscription = AppState.addEventListener("change", (state) => {
+      if (state === "active") void refresh();
+    });
+    return () => {
+      active = false;
+      subscription.remove();
+    };
+  }, [userId]);
   if (!user) return <Redirect href="/" />;
   return (
     <ScrollView style={styles.page} contentContainerStyle={styles.content}>
@@ -29,6 +50,13 @@ export default function Profile() {
       {pushEnabled && Platform.OS === "android" && (
         <Card>
           <Text style={styles.subtitle}>
+            {nativeCallReady === null
+              ? "Checking lock-screen calls…"
+              : nativeCallReady
+                ? "Lock-screen calling account is enabled."
+                : "Lock-screen calls are off. Enable the Relay calling account below."}
+          </Text>
+          <Text style={styles.subtitle}>
             Enable Relay in your phone’s calling accounts to answer calls from
             the lock screen. You can set this up whenever you’re ready.
           </Text>
@@ -36,6 +64,7 @@ export default function Profile() {
             title="Set up lock-screen calls"
             onPress={async () => {
               const enabled = await requestNativeCallSetup();
+              setNativeCallReady(enabled);
               setCallSetupMessage(
                 enabled
                   ? "Lock-screen calls are enabled."

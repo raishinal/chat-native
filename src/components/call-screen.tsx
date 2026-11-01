@@ -12,6 +12,7 @@ import Feather from "@expo/vector-icons/Feather";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { RTCView, type MediaStream } from "react-native-webrtc";
 import type { Call } from "@/lib/contracts";
+import type { CallAudioRoute } from "@/lib/call-audio-routes";
 
 type ControlProps = {
   icon: ComponentProps<typeof Feather>["name"];
@@ -83,7 +84,7 @@ export type CallScreenProps = {
   seconds: number;
   muted: boolean;
   camera: boolean;
-  speaker: boolean;
+  audioRoutes: CallAudioRoute[];
   preparing: boolean;
   ending: boolean;
   error: string;
@@ -93,10 +94,13 @@ export type CallScreenProps = {
   onRetryEnd(): Promise<unknown>;
   onMute(): void;
   onCamera(): void;
-  onSpeaker(): void;
+  onRefreshAudio(): Promise<void>;
+  onAudioRoute(route: CallAudioRoute): Promise<void>;
 };
 
 export function CallScreen(p: CallScreenProps) {
+  const [showAudioRoutes, setShowAudioRoutes] = useState(false);
+  const selectedAudio = p.audioRoutes.find((route) => route.selected);
   const video = p.call.kind === "video";
   const ended = !!p.call.ended_at;
   const hasCamera = !!p.local
@@ -272,17 +276,59 @@ export function CallScreen(p: CallScreenProps) {
                 />
               )}
               <Control
-                icon={p.speaker ? "volume-2" : "phone"}
-                label={p.speaker ? "Speaker" : "Call mode"}
-                hint={
-                  p.speaker
-                    ? "Switch to call mode using the phone earpiece"
-                    : "Switch to loudspeaker"
+                icon={
+                  selectedAudio?.kind === "bluetooth"
+                    ? "bluetooth"
+                    : selectedAudio?.kind === "headset"
+                      ? "headphones"
+                      : selectedAudio?.kind === "speaker"
+                        ? "volume-2"
+                        : "phone"
                 }
-                active={p.speaker}
+                label="Audio"
+                hint="Choose call speaker and microphone"
+                active={showAudioRoutes}
                 disabled={!p.local || p.ending}
-                onPress={p.onSpeaker}
+                onPress={async () => {
+                  setShowAudioRoutes((shown) => !shown);
+                  await p.onRefreshAudio();
+                }}
               />
+            </View>
+          )}
+          {showAudioRoutes && !ended && !p.incoming && (
+            <View>
+              <Text style={s.note}>
+                Call audio and microphone
+                {selectedAudio ? ` · ${selectedAudio.label}` : ""}
+              </Text>
+              <ScrollView horizontal contentContainerStyle={s.controls}>
+                {p.audioRoutes.map((route) => (
+                  <Control
+                    key={route.id}
+                    icon={
+                      route.kind === "bluetooth"
+                        ? "bluetooth"
+                        : route.kind === "headset"
+                          ? "headphones"
+                          : route.kind === "speaker"
+                            ? "volume-2"
+                            : "phone"
+                    }
+                    label={route.label}
+                    active={route.selected}
+                    disabled={!p.local || p.ending}
+                    onPress={async () => {
+                      await p.onAudioRoute(route);
+                      setShowAudioRoutes(false);
+                    }}
+                  />
+                ))}
+              </ScrollView>
+              <Text style={s.note}>
+                Connect earbuds in Bluetooth settings. On Android, allow Nearby
+                devices.
+              </Text>
             </View>
           )}
           {video && !p.incoming && !hasCamera && !ended && (

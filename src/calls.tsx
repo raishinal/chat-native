@@ -29,7 +29,16 @@ import {
   type CallConnectivity,
 } from "./lib/call-connectivity";
 import { createIncomingRingtone } from "./lib/incoming-ringtone";
-import { requestCallBluetooth, setCallSpeaker } from "./lib/call-audio";
+import {
+  requestCallBluetooth,
+  getCallAudioRoutes,
+  selectCallAudioRoute,
+  watchIOSCallAudioRoutes,
+} from "./lib/call-audio";
+import {
+  parseAndroidCallRoutes,
+  type CallAudioRoute,
+} from "./lib/call-audio-routes";
 import { gatherEarlyIce } from "./lib/call-ice";
 import { CallStateSync } from "./lib/call-state-sync";
 import { canApplyAnswer, RemoteDescriptions } from "./lib/remote-descriptions";
@@ -76,7 +85,7 @@ export function CallProvider({ children }: PropsWithChildren) {
     [preparing, setPreparing] = useState(false),
     [muted, setMuted] = useState(false),
     [camera, setCamera] = useState(false),
-    [speaker, setSpeaker] = useState(false),
+    [audioRoutes, setAudioRoutes] = useState<CallAudioRoute[]>([]),
     [seconds, setSeconds] = useState(0),
     [nativeRingingId, setNativeRingingId] = useState<number | null>(null),
     [retryEnd, setRetryEnd] = useState(false);
@@ -154,7 +163,7 @@ export function CallProvider({ children }: PropsWithChildren) {
     setCamera(false);
     mutedRef.current = false;
     setMuted(false);
-    setSpeaker(false);
+    setAudioRoutes([]);
     InCallManager.stop();
   }
   function dismiss() {
@@ -487,9 +496,11 @@ export function CallProvider({ children }: PropsWithChildren) {
             ? "_DEFAULT_"
             : "",
       });
-      // Start with automatic accessory routing; video defaults to speaker.
-      // Explicit user choices below override that default in both call types.
-      setSpeaker(c.kind === "video");
+      void getCallAudioRoutes()
+        .then((routes) => {
+          if (valid()) setAudioRoutes(routes);
+        })
+        .catch(() => {});
       for (const track of media.getTracks()) {
         pc.addTrack(track, media);
         track.addEventListener("ended", () => {
@@ -860,10 +871,20 @@ export function CallProvider({ children }: PropsWithChildren) {
     const route = DeviceEventEmitter.addListener(
       "onAudioDeviceChanged",
       (event) => {
-        if (current.current && !current.current.ended_at)
-          setSpeaker(event.selectedAudioDevice === "SPEAKER_PHONE");
+        if (stream.current && current.current && !current.current.ended_at)
+          setAudioRoutes(parseAndroidCallRoutes(event));
       },
     );
+    const iosRoute = watchIOSCallAudioRoutes(() => {
+      const id = current.current?.id;
+      if (!id || !stream.current) return;
+      void getCallAudioRoutes()
+        .then((routes) => {
+          if (current.current?.id === id && stream.current)
+            setAudioRoutes(routes);
+        })
+        .catch(() => {});
+    });
     const networkState = new CallNetworkState();
     const network = Network.addNetworkStateListener((state) => {
       const { online, changed } = networkState.update(state);
@@ -881,6 +902,7 @@ export function CallProvider({ children }: PropsWithChildren) {
       app.remove();
       interruption.remove();
       route.remove();
+      iosRoute?.remove();
       network.remove();
       if (closeTimer.current) clearTimeout(closeTimer.current);
       const c = current.current;
@@ -985,7 +1007,7 @@ export function CallProvider({ children }: PropsWithChildren) {
             seconds={seconds}
             muted={muted}
             camera={camera}
-            speaker={speaker}
+            audioRoutes={audioRoutes}
             preparing={preparing}
             ending={ending}
             error={error}
@@ -1019,9 +1041,19 @@ export function CallProvider({ children }: PropsWithChildren) {
               });
               setCamera(!camera);
             }}
-            onSpeaker={() => {
-              setCallSpeaker(!speaker);
-              setSpeaker(!speaker);
+            onRefreshAudio={async () => {
+              const id = call.id;
+              await requestCallBluetooth();
+              if (current.current?.id !== id || !stream.current) return;
+              const routes = await getCallAudioRoutes();
+              if (current.current?.id === id && stream.current)
+                setAudioRoutes(routes);
+            }}
+            onAudioRoute={async (route) => {
+              const id = call.id;
+              const routes = await selectCallAudioRoute(callUUID(id), route);
+              if (current.current?.id === id && stream.current)
+                setAudioRoutes(routes);
             }}
           />
         )}
