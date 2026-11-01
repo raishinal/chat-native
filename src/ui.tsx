@@ -26,6 +26,7 @@ export function Button({
   danger = false,
   icon,
   iconOnly = false,
+  compact = false,
   soft = false,
 }: {
   title: string;
@@ -34,6 +35,7 @@ export function Button({
   danger?: boolean;
   icon?: React.ComponentProps<typeof Feather>["name"];
   iconOnly?: boolean;
+  compact?: boolean;
   soft?: boolean;
 }) {
   const [busy, setBusy] = useState(false);
@@ -44,6 +46,7 @@ export function Button({
       accessibilityHint={iconOnly ? title : undefined}
       accessibilityState={{ disabled: disabled || busy }}
       disabled={disabled || busy}
+      hitSlop={compact ? 6 : undefined}
       style={[
         styles.button,
         { flexDirection: "row", gap: 8 },
@@ -53,6 +56,13 @@ export function Button({
           height: 44,
           paddingHorizontal: 0,
           borderRadius: 22,
+        },
+        iconOnly && compact && {
+          width: 32,
+          height: 32,
+          minHeight: 32,
+          paddingVertical: 0,
+          borderRadius: 16,
         },
         danger && { backgroundColor: colors.red },
         (disabled || busy) && { opacity: 0.45 },
@@ -72,7 +82,7 @@ export function Button({
           {icon && (
             <Feather
               name={icon}
-              size={19}
+              size={compact ? 15 : 19}
               color={soft && !danger ? colors.blue : "white"}
             />
           )}

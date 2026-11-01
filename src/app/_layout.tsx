@@ -3,10 +3,12 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { SessionProvider, useSession } from "@/session";
 import { ChatProvider } from "@/chat";
 import { CallProvider } from "@/calls";
+import { PushRegistration } from "@/push";
 export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <SessionProvider>
+        <PushRegistration />
         <ChatProvider>
           <CallProvider>
             <Navigator />

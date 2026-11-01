@@ -1,0 +1,65 @@
+# Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
+
+# dependencies
+node_modules/
+
+# Expo
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+
+# Native
+.kotlin/
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+
+# Metro
+.metro-health-check*
+
+# debug
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# macOS
+.DS_Store
+*.pem
+
+# local env files
+.env*.local
+/.env
+/*-build.log
+/bundle-check.log
+/config-check.json
+
+# typescript
+*.tsbuildinfo
+
+example
+
+# generated native folders
+/ios
+/android
+/short-autolink.log
+/test-results.log
+/dependency-audit.json
+/emulator-*.log
+/emulator-process.txt
+/relay-ui.xml
+/relay-startup.png
+/env-bundle-check.log
+
+# Firebase app configuration is supplied locally or through EAS files.
+google-services.json
+GoogleService-Info.plist
+
+# Never include Firebase service-account keys in app source or builds.
+*firebase-adminsdk*.json
+
+# Firebase Android client configuration is required in cloud builds.
+!google-services.json

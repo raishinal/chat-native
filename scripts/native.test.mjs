@@ -118,7 +118,7 @@ test("login persists securely before installing session, logout removes it", asy
   assert.equal(store.value, null);
 });
 test("sender broadcast, API response, and optimistic send merge into one canonical row", () => {
-  let rows = mergeMessages([], [{ ...message, id: -1, state: "sending" }]);
+  let rows = mergeMessages([], [{ ...message, id: -1, state: "sending", created_at: "2026-01-01T00:00:05Z" }]);
   rows = mergeMessages(rows, [message]);
   rows = mergeMessages(rows, [
     message,
@@ -133,6 +133,18 @@ test("UUID deduplication remains scoped to the sender", () => {
     mergeMessages([message], [{ ...message, id: 6, sender_id: 2 }]).length,
     2,
   );
+});
+
+test("late message responses cannot undo an edit or restore a deleted message", () => {
+  const edited = {
+    ...message,
+    body: "Updated",
+    edited_at: "2026-01-01T00:01:00Z",
+  };
+  assert.deepEqual(mergeMessages([edited], [message]), [edited]);
+  const deleted = { ...edited, body: null, deleted_at: "2026-01-01T00:02:00Z" };
+  assert.deepEqual(mergeMessages([deleted], [edited, message]), [deleted]);
+  assert.deepEqual(mergeMessages([message], [edited, deleted]), [deleted]);
 });
 test("notification alerts deduplicate repeated live delivery", () => {
   const once = new Once();

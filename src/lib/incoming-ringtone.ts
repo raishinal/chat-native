@@ -8,7 +8,7 @@ type Player = {
   stopRingtone(): void;
 };
 
-/** Ring once per incoming call and stop independently of the in-call audio route. */
+/** Keep the incoming alert separate from the microphone's communication session. */
 export function createIncomingRingtone(player: Player) {
   let activeId: number | null = null;
   function stop() {

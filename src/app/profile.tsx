@@ -1,15 +1,17 @@
-import { api } from "@/lib/api";
-import type { PickedFile, User } from "@/lib/contracts";
-import { useSession } from "@/session";
-import { Button, Card, Field, styles } from "@/ui";
-import * as ImagePicker from "expo-image-picker";
-import { Redirect } from "expo-router";
 import { useState } from "react";
-import { ScrollView, Text } from "react-native";
+import { Platform, ScrollView, Text } from "react-native";
+import { Redirect } from "expo-router";
+import * as ImagePicker from "expo-image-picker";
+import { useSession } from "@/session";
+import { pushEnabled, requestNativeCallSetup } from "@/lib/native-push";
+import { api, origin } from "@/lib/api";
+import type { PickedFile, User } from "@/lib/contracts";
+import { Button, Card, Field, styles } from "@/ui";
 export default function Profile() {
   const { user, setUser, logout } = useSession(),
     [name, setName] = useState(user?.name || ""),
     [avatar, setAvatar] = useState<PickedFile | null>(null),
+    [callSetupMessage, setCallSetupMessage] = useState(""),
     [currentPassword, setCurrentPassword] = useState(""),
     [password, setPassword] = useState(""),
     [confirmation, setConfirmation] = useState(""),
@@ -18,6 +20,34 @@ export default function Profile() {
   return (
     <ScrollView style={styles.page} contentContainerStyle={styles.content}>
       <Text style={styles.title}>Your profile</Text>
+      <Text style={styles.subtitle}>Server: {origin}</Text>
+      {!pushEnabled && (
+        <Text style={styles.subtitle}>
+          Background message and call alerts are not enabled in this version.
+        </Text>
+      )}
+      {pushEnabled && Platform.OS === "android" && (
+        <Card>
+          <Text style={styles.subtitle}>
+            Enable Relay in your phone’s calling accounts to answer calls from
+            the lock screen. You can set this up whenever you’re ready.
+          </Text>
+          <Button
+            title="Set up lock-screen calls"
+            onPress={async () => {
+              const enabled = await requestNativeCallSetup();
+              setCallSetupMessage(
+                enabled
+                  ? "Lock-screen calls are enabled."
+                  : "Enable Relay in calling accounts, then return here. You can also do this later.",
+              );
+            }}
+          />
+          {!!callSetupMessage && (
+            <Text style={styles.subtitle}>{callSetupMessage}</Text>
+          )}
+        </Card>
+      )}
       <Card>
         <Field
           placeholder="Display name"
@@ -104,9 +134,7 @@ export default function Profile() {
         <Button
           title="Change password"
           disabled={
-            !currentPassword ||
-            password.length < 8 ||
-            password !== confirmation
+            !currentPassword || password.length < 8 || password !== confirmation
           }
           onPress={async () => {
             setPasswordMessage("");

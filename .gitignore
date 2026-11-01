@@ -53,3 +53,10 @@ example
 /relay-ui.xml
 /relay-startup.png
 /env-bundle-check.log
+
+# Firebase app configuration is supplied locally or through EAS files.
+google-services.json
+GoogleService-Info.plist
+
+# Never include Firebase service-account keys in app source or builds.
+*firebase-adminsdk*.json

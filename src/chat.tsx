@@ -44,6 +44,7 @@ type Chat = {
   hasMoreNotices: boolean;
   setFocus(id: number | null): void;
   refresh(): Promise<void>;
+  readyForCalls(): Promise<void>;
   history(id: number, cursor?: string): Promise<string | null>;
   put(id: number, rows: Message[]): void;
   listen(handler: (event: Event) => void): () => void;
@@ -260,11 +261,40 @@ export function ChatProvider({ children }: PropsWithChildren) {
             const m = event.data as Message;
             if (m.client_id) put(m.conversation_id, [m]);
           }
+          if (event.event === "v1.message.updated") {
+            const update = event.data as {
+              id: number;
+              conversation_id: number;
+            };
+            // Update events contain identifiers, not a complete message resource.
+            if (
+              rows.current[update.conversation_id]?.some(
+                (m) => m.id === update.id,
+              )
+            )
+              void recoverPages<Message>(
+                `conversations/${update.conversation_id}/messages`,
+                async (path) => {
+                  const page = await api.request<Page<Message>>(path);
+                  return page.data.some((m) => m.id === update.id)
+                    ? { ...page, links: { next: null } }
+                    : page;
+                },
+                (incoming) => {
+                  if (active) put(update.conversation_id, incoming);
+                },
+              ).catch(() => {
+                if (active)
+                  setError(
+                    "Could not refresh the edited message. Refresh to retry.",
+                  );
+              });
+          }
           if (event.event === "v1.notification.created") {
             const n = event.data as Notice;
             if (
               alertIds.current.take(String(n.id)) &&
-              n.kind !== "incoming_call" &&
+              n.kind === "message" &&
               AppState.currentState === "active" &&
               focus.current !== n.data.conversation_id &&
               !muteRef.current
@@ -362,6 +392,11 @@ export function ChatProvider({ children }: PropsWithChildren) {
         hasMoreNotices,
         setFocus,
         refresh,
+        readyForCalls: async () => {
+          if (!live.current)
+            throw new Error("Call signaling is not connected.");
+          await live.current.readyForCalls();
+        },
         history,
         put,
         listen: (handler) => {

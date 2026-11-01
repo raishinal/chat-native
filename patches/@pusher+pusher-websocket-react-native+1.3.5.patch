@@ -1,0 +1,71 @@
+diff --git a/node_modules/@pusher/pusher-websocket-react-native/android/src/main/java/com/pusherwebsocketreactnative/PusherWebsocketReactNativeModule.kt b/node_modules/@pusher/pusher-websocket-react-native/android/src/main/java/com/pusherwebsocketreactnative/PusherWebsocketReactNativeModule.kt
+index d189998..86f378e 100644
+--- a/node_modules/@pusher/pusher-websocket-react-native/android/src/main/java/com/pusherwebsocketreactnative/PusherWebsocketReactNativeModule.kt
++++ b/node_modules/@pusher/pusher-websocket-react-native/android/src/main/java/com/pusherwebsocketreactnative/PusherWebsocketReactNativeModule.kt
+@@ -14,6 +14,8 @@ import com.pusher.client.util.HttpChannelAuthorizer
+ import java.net.InetSocketAddress
+ import java.net.Proxy
+ import java.util.concurrent.Semaphore
++import java.util.concurrent.ConcurrentHashMap
++import java.util.concurrent.TimeUnit
+ 
+ class PusherWebsocketReactNativeModule(reactContext: ReactApplicationContext) :
+   ReactContextBaseJavaModule(reactContext),
+@@ -23,8 +25,11 @@ class PusherWebsocketReactNativeModule(reactContext: ReactApplicationContext) :
+ 
+   private var pusher: Pusher? = null
+   private val TAG = "PusherReactNative"
+-  private val authorizerMutex = mutableMapOf<String, Semaphore>()
+-  private val authorizerResult = mutableMapOf<String, ReadableMap>()
++  private class PendingAuthorization {
++    val ready = Semaphore(0)
++    @Volatile var result: ReadableMap? = null
++  }
++  private val pendingAuthorizations = ConcurrentHashMap<String, PendingAuthorization>()
+ 
+   private val pusherEventEmitter = PusherEventEmitter(reactContext)
+ 
+@@ -141,26 +146,36 @@ class PusherWebsocketReactNativeModule(reactContext: ReactApplicationContext) :
+   }
+ 
+   override fun authorize(channelName: String, socketId: String): String? {
++    val key = channelName + socketId
++    val pending = PendingAuthorization()
++    // Register before emitting: JS may answer before emit returns.
++    pendingAuthorizations[key] = pending
++    try {
+     pusherEventEmitter.emit(
+       "onAuthorizer", mapOf(
+         "channelName" to channelName,
+         "socketId" to socketId
+       )
+     )
+-    val key = channelName + socketId
+-    authorizerMutex[key] = Semaphore(0)
+-    authorizerMutex[key]!!.acquire()
+-    val authParams = authorizerResult.remove(key)!!
++    // JS can disappear during a development reload. Never block Pusher's
++    // shared event thread forever waiting for a callback from that runtime.
++    if (!pending.ready.tryAcquire(25, TimeUnit.SECONDS)) return null
++    val authParams = pending.result ?: return null
+     val gson = Gson()
+     return gson.toJson(authParams.toHashMap())
++    } finally {
++      pendingAuthorizations.remove(key, pending)
++    }
+   }
+ 
+   @ReactMethod
+   fun onAuthorizer(channelName: String, socketId: String, data: ReadableMap, promise: Promise) {
+     val key = channelName + socketId
+-    authorizerResult[key] = data
+-    authorizerMutex[key]!!.release()
+-    authorizerMutex.remove(key)
++    // A response may arrive after timeout; acknowledge it without a null crash.
++    pendingAuthorizations[key]?.let { pending ->
++      pending.result = data
++      pending.ready.release()
++    }
+     promise.resolve(null)
+   }
+ 

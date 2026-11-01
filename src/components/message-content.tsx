@@ -138,6 +138,8 @@ export function MessageContent({
           {canManage && (
             <Button
               title="Delete file"
+              iconOnly
+              compact
               icon="trash-2"
               soft
               disabled={busy || editing || confirmation !== null}
@@ -158,6 +160,8 @@ export function MessageContent({
         <View style={styles.row}>
           <Button
             title="Edit"
+            iconOnly
+            compact
             icon="edit-2"
             soft
             disabled={busy}
@@ -169,6 +173,8 @@ export function MessageContent({
           />
           <Button
             title="Delete"
+            iconOnly
+            compact
             icon="trash-2"
             soft
             disabled={busy}

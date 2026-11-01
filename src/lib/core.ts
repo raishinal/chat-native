@@ -41,7 +41,17 @@ export function mergeMessages(old: Message[], incoming: Message[]): Message[] {
           m.client_id === message.client_id),
     );
     if (index < 0) result.push(message);
-    else if (!(message.state && !result[index].state)) result[index] = message;
+    else {
+      const previous = result[index];
+      const revision = (m: Message) =>
+        Date.parse(m.deleted_at || m.edited_at || m.created_at);
+      if (
+        !(message.state && !previous.state) &&
+        !(previous.deleted_at && !message.deleted_at) &&
+        !(previous.edited_at && revision(previous) > revision(message))
+      )
+        result[index] = message;
+    }
   }
   return result.sort(
     (a, b) => a.created_at.localeCompare(b.created_at) || a.id - b.id,
@@ -183,6 +193,28 @@ type Stream = {
   getVideoTracks(): Track[];
   addTrack(track: Track): void;
 };
+
+/** Prepare network and device resources concurrently, releasing either on failure. */
+export async function acquireCallResources<
+  P extends { close(): void },
+  S extends { getTracks(): Track[]; release?(): void },
+>(
+  createPeer: () => Promise<P>,
+  createMedia: () => Promise<S>,
+  valid: () => boolean,
+): Promise<{ pc: P; media: S }> {
+  const [peer, media] = await Promise.allSettled([createPeer(), createMedia()]);
+  if (peer.status === "fulfilled" && media.status === "fulfilled" && valid())
+    return { pc: peer.value, media: media.value };
+  if (peer.status === "fulfilled") peer.value.close();
+  if (media.status === "fulfilled") {
+    media.value.getTracks().forEach((track) => track.stop());
+    media.value.release?.();
+  }
+  if (peer.status === "rejected") throw peer.reason;
+  if (media.status === "rejected") throw media.reason;
+  throw new Error("Call cancelled.");
+}
 export async function acquireMedia<S extends Stream>(
   video: boolean,
   acquire: (constraints: { audio: boolean; video: boolean }) => Promise<S>,

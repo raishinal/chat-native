@@ -7,7 +7,7 @@ The backend is selected by the npm command or EAS build profile. No .env file ne
 | `npm start` / `npm run start:local` | Starts Android automatically; uses `http://localhost:8000` through ADB reverse forwarding |
 | `npm run start:server` | Local Metro server only, without opening an emulator |
 | `npm run start:ios` | Local iOS simulator: `http://localhost:8000` |
-| `npm run start:dev` | `https://chat.roshanlama.com.np` |
+| `npm run start:dev` | Starts Android automatically; uses `https://chat.roshanlama.com.np` |
 | `npm run start:staging` | `https://chat.roshanlama.com.np` |
 | `npm run start:production` | `https://chat.roshanlama.com.np` (debug against the live backend) |
 
@@ -18,6 +18,8 @@ A development client gets JavaScript from the Metro command you start. Use `npm 
 `npm start` now passes Expo's `--android` option. Expo starts an available Android emulator when no device is connected, waits for it to boot, and opens the installed Relay development build. Your current AVD is `Pixel_10_Pro`. If an Android device/emulator is already running, Expo reuses it. Use Shift+A in the Metro terminal to choose a different device. Stopping Metro leaves the emulator open so subsequent starts are faster.
 
 Install a development build once before using this launch flow (`npm run android`, or install an EAS development APK). Expo Go cannot run this app's native modules. Use `npm run start:server` when you only want Metro, and `npm run start:ios` for iOS.
+
+To test the hosted backend on the local Android emulator, run `npm run start:dev`. With multiple Android devices connected, use Shift+A in Metro to select the emulator. Sign in with an existing account from the hosted website. Optional `.env.development.local` Pusher values enable live updates for this profile without changing local-backend settings.
 
 To compile native projects locally, `npm run android` and `npm run ios` target the local backend. `npm run android:dev` and `npm run ios:dev` target the hosted backend. Windows native builds automatically use the short CMake cache described in the README; moving the repository is not required for the verified build.
 

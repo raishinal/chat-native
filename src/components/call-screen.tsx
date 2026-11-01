@@ -201,7 +201,9 @@ export function CallScreen(p: CallScreenProps) {
                       ? "Someone wants to connect"
                       : p.call.connected_at
                         ? "You're connected"
-                        : "A conversation away"}
+                        : p.call.status === "ringing"
+                          ? "A conversation away"
+                          : "Connecting your conversation"}
               </Text>
               <Text style={s.stageSubtitle}>
                 {ended
@@ -212,7 +214,9 @@ export function CallScreen(p: CallScreenProps) {
                       ? "Answer to start your conversation"
                       : p.call.connected_at
                         ? "Take your time. Stay a little."
-                        : "Waiting for them to answer"}
+                        : p.call.status === "ringing"
+                          ? "Waiting for them to answer"
+                          : "Call accepted. Establishing audio…"}
               </Text>
             </View>
           )}
@@ -268,9 +272,13 @@ export function CallScreen(p: CallScreenProps) {
                 />
               )}
               <Control
-                icon={p.speaker ? "volume-2" : "headphones"}
-                label={p.speaker ? "Speaker" : "Earpiece"}
-                hint={p.speaker ? "Use earpiece" : "Use speaker"}
+                icon={p.speaker ? "volume-2" : "phone"}
+                label={p.speaker ? "Speaker" : "Call mode"}
+                hint={
+                  p.speaker
+                    ? "Switch to call mode using the phone earpiece"
+                    : "Switch to loudspeaker"
+                }
                 active={p.speaker}
                 disabled={!p.local || p.ending}
                 onPress={p.onSpeaker}

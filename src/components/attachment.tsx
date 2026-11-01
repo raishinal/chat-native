@@ -1,5 +1,13 @@
-import { useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, Image, Text, View } from "react-native";
+import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  ActivityIndicator,
+  Image,
+  Modal,
+  Pressable,
+  Text,
+  View,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { File } from "expo-file-system";
 import { useAudioPlayer } from "expo-audio";
 import { useVideoPlayer, VideoView } from "expo-video";
@@ -11,12 +19,77 @@ import type { Attachment } from "@/lib/contracts";
 import { Button, Card, colors, styles } from "@/ui";
 function Video({ uri }: { uri: string }) {
   const player = useVideoPlayer(uri);
+  const view = useRef<VideoView>(null);
   return (
-    <VideoView
-      player={player}
-      nativeControls
-      style={{ width: "100%", height: 200 }}
-    />
+    <>
+      <VideoView
+        ref={view}
+        player={player}
+        nativeControls
+        fullscreenOptions={{ enable: true }}
+        contentFit="contain"
+        style={{ width: "100%", height: 200 }}
+      />
+      <Button
+        icon="maximize"
+        iconOnly
+        soft
+        title="View video full screen"
+        onPress={() => view.current?.enterFullscreen()}
+      />
+    </>
+  );
+}
+function ImagePreview({
+  uri,
+  name,
+  onError,
+}: {
+  uri: string;
+  name: string;
+  onError(): void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  return (
+    <>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`View ${name} full screen`}
+        onPress={() => setExpanded(true)}
+      >
+        <Image
+          accessibilityLabel={name}
+          source={{ uri }}
+          resizeMode="contain"
+          style={{ width: "100%", height: 200 }}
+          onError={onError}
+        />
+      </Pressable>
+      <Modal
+        visible={expanded}
+        animationType="fade"
+        presentationStyle="fullScreen"
+        onRequestClose={() => setExpanded(false)}
+      >
+        <SafeAreaView style={{ flex: 1, backgroundColor: "#000" }}>
+          <View style={{ alignItems: "flex-end", padding: 12 }}>
+            <Button
+              icon="x"
+              iconOnly
+              title="Close image preview"
+              onPress={() => setExpanded(false)}
+            />
+          </View>
+          <Image
+            accessibilityLabel={name}
+            source={{ uri }}
+            resizeMode="contain"
+            style={{ flex: 1, width: "100%" }}
+            onError={onError}
+          />
+        </SafeAreaView>
+      </Modal>
+    </>
   );
 }
 function Audio({ uri }: { uri: string }) {
@@ -93,11 +166,9 @@ export function FileAttachment({ attachment: a }: { attachment: Attachment }) {
         previewable &&
         !error &&
         (a.mime.startsWith("image/") ? (
-          <Image
-            accessibilityLabel={a.name}
-            source={{ uri }}
-            resizeMode="contain"
-            style={{ width: "100%", height: 200 }}
+          <ImagePreview
+            name={a.name}
+            uri={uri}
             onError={() =>
               setError("Preview unavailable. Download or share the file.")
             }
@@ -127,6 +198,7 @@ export function FileAttachment({ attachment: a }: { attachment: Attachment }) {
       <View style={styles.row}>
         <Button
           icon="download"
+          iconOnly
           soft
           title="Download"
           disabled={working}
@@ -142,6 +214,7 @@ export function FileAttachment({ attachment: a }: { attachment: Attachment }) {
         />
         <Button
           icon="share-2"
+          iconOnly
           soft
           title="Share"
           disabled={working}

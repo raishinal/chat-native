@@ -13,7 +13,7 @@ export const tokenStorage = {
   read: () => SecureStore.getItemAsync(TOKEN_KEY),
   write: (token: string) =>
     SecureStore.setItemAsync(TOKEN_KEY, token, {
-      keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
+      keychainAccessible: SecureStore.AFTER_FIRST_UNLOCK_THIS_DEVICE_ONLY,
     }),
   clear: () => SecureStore.deleteItemAsync(TOKEN_KEY),
 };

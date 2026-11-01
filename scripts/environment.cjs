@@ -66,7 +66,13 @@ function resolveEnvironment(
     EXPO_NO_DOTENV: "1",
     EXPO_PUBLIC_API_ORIGIN: url.origin,
   };
-  for (const key of ["EXPO_PUBLIC_PUSHER_KEY", "EXPO_PUBLIC_PUSHER_CLUSTER"])
+  for (const key of [
+    "EXPO_PUBLIC_PUSHER_KEY",
+    "EXPO_PUBLIC_PUSHER_CLUSTER",
+    "EXPO_PUBLIC_NATIVE_PUSH_ENABLED",
+    "GOOGLE_SERVICES_JSON",
+    "GOOGLE_SERVICES_PLIST",
+  ])
     result[key] =
       inherited[key] || selected[key] || common[key] || defaults[key] || "";
   return result;

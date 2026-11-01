@@ -41,3 +41,26 @@ Sender messages expose Edit and Delete after successful delivery; each attachmen
 Device checks: use two accounts to edit text, cancel an edit, delete one of several files, delete a message with files, and delete the last file of an attachment-only message. Background the recipient during a change and verify wake/reconnect updates the older loaded message. Verify errors preserve content and allow retry. The inbox should show Message deleted for a deleted latest message.
 
 Automated checks: message-history.test.mjs covers history ranges, local outbox exclusion, and recovery of edits, removed files and tombstones across cursor pages. Typecheck, Expo lint and the native Node test suite pass. Android/iOS device acceptance testing remains outstanding.
+
+## Additional native push and APK verification
+
+
+## Follow-up: 1 November 2026
+
+Native calling now includes Firebase/Telecom integration configured for local Android
+testing (see native-push-setup.md). The local Android development APK built for all
+configured architectures and was installed on both the Samsung SM-S918B and emulator.
+A live audio call reached WebRTC/ICE connected on both devices after the ICE delivery
+fix; the user confirmed connection. This supersedes the historical lack of any actual
+media connection above. Two-way audio quality, iOS, and complete background/terminated
+call behavior still need acceptance checks.
+
+The phone-account setup dialog no longer opens automatically during incoming calls;
+Profile has an explicit setup action. Lint/typecheck passed and all 77 automated tests
+passed, including regression coverage for slow candidate delivery and dismissing setup.
+
+## Original repository merge — 1 November 2026
+
+The native push, lock-screen call integration, media signaling fixes, icon/media preview changes and standalone APK tooling were merged into the canonical Documents/chat-app-native repository. Existing account creation/password/deletion controls, profile password changes, automatic chat pagination, history/tombstone recovery, network diagnostics and the normalized foreground chime were preserved. Original .env, .env.local and Firebase client configuration were retained. Dependencies were installed and patches applied, Android was regenerated through Expo with the preview profile, lint and TypeScript checks passed, and all 88 combined regression tests passed. The preview build resolves https://chat.roshanlama.com.np with Firebase push enabled.
+
+The merged original repository also passed a complete local release APK build (1,104 Gradle tasks). The resulting dist/relay-live.apk is 166,348,096 bytes, has valid archive contents and a verified Android signature, contains the live HTTPS host and bundled JavaScript, and contains no localhost API URL or Firebase service-account file. It remains development-signed for internal testing. Runtime launch on a device was not repeated during this repository merge.
